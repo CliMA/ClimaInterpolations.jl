@@ -1,12 +1,12 @@
 
 function interpolate1d!(
-    ftarget::MtlArray{FT,N},
-    xsource::MtlArray{FT,N},
-    xtarget::MtlArray{FT,N},
-    fsource::MtlArray{FT,N},
+    ftarget::CuArray{FT,N},
+    xsource::CuArray{FT,N},
+    xtarget::CuArray{FT,N},
+    fsource::CuArray{FT,N},
     order,
     extrapolate = ClimaInterpolations.Interpolation1D.Flat(),
-) where {FT<:Float32,N}
+) where {FT,N}
     @assert N ≥ 1
     (nsource, coldims_source...) = size(xsource)
     (ntarget, coldims_target...) = size(xtarget)
@@ -16,7 +16,7 @@ function interpolate1d!(
     coldims = coldims_source
     colcidxs = CartesianIndices(coldims)
     nitems = length(colcidxs)
-    kernel = @metal launch = false interpolate1d_kernel!(
+    kernel = @cuda launch = false interpolate1d_kernel!(
         ftarget,
         xsource,
         xtarget,
@@ -25,10 +25,11 @@ function interpolate1d!(
         extrapolate,
         colcidxs,
     )
-    nthreads = min(kernel.pipeline.maxTotalThreadsPerThreadgroup, nitems)
-    ngroups = convert(Int, cld(nitems, nthreads))
+    kernel_config = CUDA.launch_configuration(kernel.fun)
+    nthreads = min(kernel_config.threads, nitems)
+    nblocks = convert(Int, cld(nitems, nthreads))
 
-    @metal threads = nthreads groups = ngroups interpolate1d_kernel!(
+    @cuda threads = nthreads blocks = nblocks interpolate1d_kernel!(
         ftarget,
         xsource,
         xtarget,
@@ -48,12 +49,12 @@ function interpolate1d_kernel!(
     order,
     extrapolate,
     colcidxs,
-) where {FT<:Float32,N}
+) where {FT,N}
     nitems = length(colcidxs)
-    tid = thread_position_in_grid_1d()
+    gid = threadIdx().x + (blockIdx().x - 1) * blockDim().x
 
-    if tid ≤ nitems
-        colidx = Tuple(colcidxs[tid])
+    if gid ≤ nitems
+        colidx = Tuple(colcidxs[gid])
         nsource = size(xsource, 1)
         ntarget = size(xtarget, 1)
         first = 1
