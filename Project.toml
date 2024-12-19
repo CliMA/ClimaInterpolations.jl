@@ -2,3 +2,11 @@ name = "ClimaInterpolations"
 uuid = "dd0f122e-fa3b-47f3-bcf0-93bbc60d885e"
 authors = ["sriharshakandala <sriharsha.kvs@gmail.com>"]
 version = "0.1.0"
+
+[weakdeps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+
+[extensions]
+ClimaInterpolationsMetalExt = "Metal"
+ClimaInterpolationsCUDAExt = "CUDA"
