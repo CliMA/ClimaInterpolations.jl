@@ -2,9 +2,9 @@ import ..ClimaInterpolations.BilinearInterpolation:
     Bilinear, set_source_range!, interpolatebilinear!, get_stencil_bilinear1d, get_dims
 
 function interpolatebilinear!(
-    ftarget::MtlArray{FT,N},
+    ftarget::CuArray{FT,N},
     bilinear::B,
-    fsource::MtlArray{FT,N},
+    fsource::CuArray{FT,N},
 ) where {FT<:Float32,N,B}
     @assert N ≥ 2
     (leveldimssource..., nxs, nys) = size(fsource)
@@ -17,21 +17,21 @@ function interpolatebilinear!(
     @assert nxt == ntargetx && nyt == ntargety
     # max threadgroups per grid is not officially specified by Metal
     # It is possible this number is unlimited on newer Apple models (>m3)
-    maxxthreadgroups = 1024
-    maxythreadgroups = 1024
+    maxxblocks = 1024
+    maxyblocks = 1024
     # target n loops per dimension per threadgroup
     targetloopsperblockdimx = 4
     targetloopsperblockdimy = 4
-    nxthreadgroups = min(cld(ntargetx, targetloopsperblockdimx), maxxthreadgroups)
-    nythreadgroups = min(cld(ntargety, targetloopsperblockdimy), maxythreadgroups)
+    nxblocks = min(cld(ntargetx, targetloopsperblockdimx), maxxblocks)
+    nyblocks = min(cld(ntargety, targetloopsperblockdimy), maxyblocks)
 
-    nxloops = cld(ntargetx, nxthreadgroups)
-    nyloops = cld(ntargety, nythreadgroups)
+    nxloops = cld(ntargetx, nxblocks)
+    nyloops = cld(ntargety, nyblocks)
 
     levelcidxs = CartesianIndices(leveldimssource)
     nlevels = length(levelcidxs)
 
-    kernel = @metal launch = false interpolatebilinear_kernel!(
+    kernel = @cuda launch = false interpolatebilinear_kernel!(
         ftarget,
         bilinear,
         fsource,
@@ -40,10 +40,11 @@ function interpolatebilinear!(
         (nyloops, ntargety),
         (1, 1),
     )
-    nthreads = min(kernel.pipeline.maxTotalThreadsPerThreadgroup, nlevels)
+    kernel_config = CUDA.launch_configuration(kernel.fun)
+    nthreads = min(kernel_config.threads, nlevels)
     nzloops = cld(nlevels, nthreads)
 
-    @metal threads = nthreads groups = (nxthreadgroups, nythreadgroups) interpolatebilinear_kernel!(
+    @cuda threads = nthreads blocks = (nxblocks, nyblocks) interpolatebilinear_kernel!(
         ftarget,
         bilinear,
         fsource,
@@ -66,21 +67,21 @@ function interpolatebilinear_kernel!(
 ) where {FT<:Float32,N,B}
     (; sourcex, sourcey, targetx, targety, startx, starty) = bilinear
 
-    ixtg, iytg = threadgroup_position_in_grid_2d()
-    izt = thread_index_in_threadgroup()
-    nzthreads = threads_per_threadgroup_1d()
-    (nxthreadgroups, nythreadgroups) = threadgroups_per_grid_2d()
+    ixtg, iytg = blockIdx().x, blockIdx().y
+    izt = threadIdx().x
+    nzthreads = blockDim().x
+    (nxblocks, nyblocks) = gridDim().x, gridDim().y
 
     @inbounds begin
         for yl = 1:nyloops
-            iy = iytg + (yl - 1) * nythreadgroups
+            iy = iytg + (yl - 1) * nyblocks
             if iy ≤ ntargety
                 y, sty = targety[iy], starty[iy]
                 y1, y2 = sourcey[sty], sourcey[sty+1]
                 dy1 = y - y1
                 dy2 = y2 - y
                 for xl = 1:nxloops
-                    ix = ixtg + (xl - 1) * nxthreadgroups
+                    ix = ixtg + (xl - 1) * nxblocks
                     if ix ≤ ntargetx
                         x, stx = targetx[ix], startx[ix]
                         x1, x2 = sourcex[stx], sourcex[stx+1]
@@ -117,14 +118,14 @@ function interpolatebilinear_kernel!(
     return nothing
 end
 
-Metal.Adapt.@adapt_structure Bilinear
+CUDA.Adapt.@adapt_structure Bilinear
 
-function Bilinear(sourcex::V, sourcey::V, targetx::V, targety::V) where {V<:MtlVector}
+function Bilinear(sourcex::V, sourcey::V, targetx::V, targety::V) where {V<:CuVector}
     startx = similar(targetx, Int)
     starty = similar(targety, Int)
     # Call set_source_range_kernel! with one thread per group
     # and two threadgroups
-    @metal threads = 1 groups = 2 set_source_range_kernel!(
+    @cuda threads = 1 blocks = 2 set_source_range_kernel!(
         startx,
         sourcex,
         targetx,
@@ -144,9 +145,9 @@ function set_source_range_kernel!(
     targety::AbstractVector{FT},
 ) where {I,FT}
     order = Linear()
-    groupid = threadgroup_position_in_grid_1d()
-    localtid = thread_position_in_threadgroup_1d()
-    (groupid == 1 && localtid == 1) && set_source_range!(startx, sourcex, targetx)
-    (groupid == 2 && localtid == 1) && set_source_range!(starty, sourcey, targety)
+    bid = blockIdx().x
+    tid = threadIdx().x
+    (bid == 1 && tid == 1) && set_source_range!(startx, sourcex, targetx)
+    (bid == 2 && tid == 1) && set_source_range!(starty, sourcey, targety)
     return nothing
 end
