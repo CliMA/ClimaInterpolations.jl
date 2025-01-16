@@ -1,0 +1,3 @@
+module ClimaInterpolationsCUDAExt
+
+end # module
