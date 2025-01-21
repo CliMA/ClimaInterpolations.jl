@@ -5,7 +5,7 @@ function interpolatebilinear!(
     ftarget::CuArray{FT,N},
     bilinear::B,
     fsource::CuArray{FT,N},
-) where {FT<:Float32,N,B}
+) where {FT,N,B}
     @assert N ≥ 2
     (leveldimssource..., nxs, nys) = size(fsource)
     (leveldimstarget..., nxt, nyt) = size(ftarget)
@@ -64,7 +64,7 @@ function interpolatebilinear_kernel!(
     (nxloops, ntargetx),
     (nyloops, ntargety),
     (nzloops, nlevels),
-) where {FT<:Float32,N,B}
+) where {FT,N,B}
     (; sourcex, sourcey, targetx, targety, startx, starty) = bilinear
 
     ixtg, iytg = blockIdx().x, blockIdx().y

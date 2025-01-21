@@ -191,6 +191,13 @@ println(
     "interpolation time = $(Statistics.median(trial_sl_cuda_ft32_interp)) on NVIDIA GPU for single level with Float32\nConstructor time = $(Statistics.median(trial_sl_cuda_ft32_cons))",
 )
 @show "--------------------------------------------"
+xrange, yrange, nsource, ntarget, toler = get_dims_singlelevel(Float64)
+trial_sl_cuda_ft64_cons, trial_sl_cuda_ft64_interp =
+    test_single_level(CuArray, Float64, xrange, yrange, nsource, ntarget, toler = toler)
+println(
+    "interpolation time = $(Statistics.median(trial_sl_cuda_ft64_interp)) on NVIDIA GPU for single level with Float64\nConstructor time = $(Statistics.median(trial_sl_cuda_ft64_cons))",
+)
+@show "--------------------------------------------"
 xrange, yrange, zrange, nsource, ntarget, nlevels, toler = get_dims_multilevel(Float32)
 trial_ml_cuda_ft32_cons, trial_ml_cuda_ft32_interp = test_multilevel(
     CuArray,
@@ -205,5 +212,21 @@ trial_ml_cuda_ft32_cons, trial_ml_cuda_ft32_interp = test_multilevel(
 )
 println(
     "interpolation time = $(Statistics.median(trial_ml_cuda_ft32_interp)) on NVIDIA GPU for $nlevels levels with Float32\nConstructor time = $(Statistics.median(trial_ml_cuda_ft32_cons))",
+)
+@show "--------------------------------------------"
+xrange, yrange, zrange, nsource, ntarget, nlevels, toler = get_dims_multilevel(Float64)
+trial_ml_cuda_ft64_cons, trial_ml_cuda_ft64_interp = test_multilevel(
+    CuArray,
+    Float64,
+    xrange,
+    yrange,
+    zrange,
+    nsource,
+    ntarget,
+    nlevels,
+    toler = toler,
+)
+println(
+    "interpolation time = $(Statistics.median(trial_ml_cuda_ft64_interp)) on NVIDIA GPU for $nlevels levels with Float64\nConstructor time = $(Statistics.median(trial_ml_cuda_ft64_cons))",
 )
 @show "--------------------------------------------"
