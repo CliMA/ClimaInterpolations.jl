@@ -11,13 +11,14 @@ env:
 
 steps:
   - label: "initialize"
-    key: "init_cpu_env"
+    key: "init_buildkite_env"
     command:
       - "echo $$JULIA_DEPOT_PATH"
 
       - echo "--- Instantiate buildkite"
       - "julia --project=.buildkite -e 'using Pkg; Pkg.develop(;path=\".\"); Pkg.instantiate(;verbose=true)'"
       - "julia --project=.buildkite -e 'using Pkg; Pkg.precompile()'"
+      - "julia --project=.buildkite -e 'using CUDA; CUDA.precompile_runtime(); CUDA.versioninfo()'"
       - "julia --project=.buildkite -e 'using Pkg; Pkg.status()'"
     agents:
       slurm_mem: 10G
@@ -31,7 +32,14 @@ steps:
   - group: "Unit: Package-wide"
     steps:
 
-      - label: "Unit: aqua"
-        key: unit_aqua
-        command: "julia --color=yes --check-bounds=yes --project=.buildkite test/aqua.jl"
+      - label: "Unit: CPU tests & aqua"
+        key: unit_cpu_tests
+        command: "julia --color=yes --check-bounds=yes --project=.buildkite test/runtests.jl"
 
+      - label: "Unit: CUDA tests"
+        key: unit_cuda_tests
+        command:
+          - "julia --color=yes --check-bounds=yes --project=.buildkite test/runtests_cuda.jl"
+        agents:
+          slurm_gpus: 1
+          slurm_cpus_per_task: 4

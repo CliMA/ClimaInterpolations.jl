@@ -26,7 +26,7 @@ Documenter.makedocs(;
     clean = true,
     doctest = true,
     modules = [ClimaInterpolations],
-    pages = Any["Home" => "index.md", "references.md"],
+    pages = Any["Home" => "index.md", "Interpolation1D.md", "references.md"],
 )
 
 Documenter.deploydocs(
