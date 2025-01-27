@@ -20,7 +20,7 @@ format = Documenter.HTML(
 
 Documenter.makedocs(;
     plugins = [bib],
-    sitename = "ClimaCore.jl",
+    sitename = "ClimaInterpolations.jl",
     format = format,
     checkdocs = :exports,
     clean = true,
