@@ -41,6 +41,40 @@ using Aqua
     end
 end
 
+@safetestset "bilinear interpolation" begin
+    include("bilinearinterpolation.jl")
+
+    for FT in (Float32, Float64)
+        # bilinear interpolation on a single level
+        xrange, yrange, nsource, ntarget, toler = get_dims_singlelevel(FT)
+        test_single_level(
+            Array,
+            FT,
+            xrange,
+            yrange,
+            nsource,
+            ntarget,
+            toler = toler,
+        )
+
+        # bilinear interpolation on multiple levels
+        xrange, yrange, zrange, nsource, ntarget, nlevels, toler =
+            get_dims_multilevel(FT)
+        test_multilevel(
+            Array,
+            FT,
+            xrange,
+            yrange,
+            zrange,
+            nsource,
+            ntarget,
+            nlevels,
+            toler = toler,
+        )
+
+    end
+end
+
 #! format: off
 @safetestset "Aqua" begin @time include("aqua.jl") end
 #! format: on
