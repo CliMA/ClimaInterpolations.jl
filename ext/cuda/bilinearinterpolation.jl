@@ -1,14 +1,7 @@
 import ..ClimaInterpolations.BilinearInterpolation:
-    Bilinear,
-    set_source_range!,
-    interpolatebilinear!,
-    get_stencil_bilinear1d,
-    get_dims
+    Bilinear, set_source_range!, interpolatebilinear!, get_dims
+import ..get_maxgridsize
 
-# CUDA limit per maximum number of logical blocks per grid dimension
-# The first dimension could have a higher limit, but a convervative
-# value is used here.
-_get_maxblocksperdim() = 65535
 
 """
     interpolatebilinear!(
@@ -56,10 +49,9 @@ function interpolatebilinear!(
     # It was found to be more efficent to process multiple loops per block/threadgroup
     targetloopsperblockdimx = 4
     targetloopsperblockdimy = 4
-    nxblocks =
-        min(cld(ntargetx, targetloopsperblockdimx), _get_maxblocksperdim())
-    nyblocks =
-        min(cld(ntargety, targetloopsperblockdimy), _get_maxblocksperdim())
+    maxblocksperxdim, maxblocksperydim, _ = get_maxgridsize()
+    nxblocks = min(cld(ntargetx, targetloopsperblockdimx), maxblocksperxdim)
+    nyblocks = min(cld(ntargety, targetloopsperblockdimy), maxblocksperydim)
 
     nxloops = cld(ntargetx, nxblocks)
     nyloops = cld(ntargety, nyblocks)
