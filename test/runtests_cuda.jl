@@ -39,3 +39,37 @@ using ClimaInterpolations
         )
     end
 end
+
+@testset "bilinear interpolation" begin
+    include("bilinearinterpolation.jl")
+
+    for FT in (Float32, Float64)
+        # bilinear interpolation on a single level
+        xrange, yrange, nsource, ntarget, toler = get_dims_singlelevel(FT)
+        test_single_level(
+            CuArray,
+            FT,
+            xrange,
+            yrange,
+            nsource,
+            ntarget,
+            toler = toler,
+        )
+
+        # bilinear interpolation on multiple levels
+        xrange, yrange, zrange, nsource, ntarget, nlevels, toler =
+            get_dims_multilevel(FT)
+        test_multilevel(
+            CuArray,
+            FT,
+            xrange,
+            yrange,
+            zrange,
+            nsource,
+            ntarget,
+            nlevels,
+            toler = toler,
+        )
+
+    end
+end
