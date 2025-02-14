@@ -45,3 +45,103 @@ interpolate1d!(ftargetcols, xsourcecols, xtargetcols, fsourcecols, Linear(), Fla
 ```
 
 The above examples can be run on NVIDIA GPUs by setting `DA = CuArray`.
+
+## BilinearInterpolation
+`interpolatebilinear!` function can be used to perform bilinear interpolation on a single level on or a multiple horizontal levels of a rectangular grid. Both single threaded CPU and NVIDIA GPU platforms are supported. Examples for single level and multiple level cases are presented below.
+
+### Example
+
+Example for using bilinear interpolation a single level on a CPU:
+
+```julia
+# This example demonstrates use of bilinear interpolation for interpolating from 
+# a source grid of dimension (nsourcex x nsourcey) to a target grid of dimension (ntargetx x ntargety)
+
+import ClimaInterpolations.BilinearInterpolation: Bilinear, interpolatebilinear!
+import ClimaInterpolations.Interpolation1D:
+    Linear, interpolate1d!, Flat
+
+FT, DA = Float32, Array
+
+xmin, xmax, nsourcex, ntargetx = FT(0), FT(3π), 2560, 1280
+xmintarg, xmaxtarg = xmin, xmax
+
+ymin, ymax, nsourcey, ntargety = FT(0), FT(2π), 2400, 1200
+ymintarg, ymaxtarg = ymin, ymax
+
+xsource = DA{FT}(range(xmin, xmax, length = nsourcex))
+xtarget = DA{FT}(range(xmintarg, xmaxtarg, length = ntargetx))
+
+ysource = DA{FT}(range(ymin, ymax, length = nsourcey))
+ytarget = DA{FT}(range(ymintarg, ymaxtarg, length = ntargety))
+
+sourcemesh = (
+    x = DA([xsource[i] for i in 1:nsourcex, j in 1:nsourcey]),
+    y = DA([ysource[j] for i in 1:nsourcex, j in 1:nsourcey]),
+) # Define function to be interpolated on the source grid
+
+
+fsource = sin.(π .* sourcemesh.x) .* cos.(π .* sourcemesh.y) # function defined on source grid
+ftarget = DA(zeros(FT, ntargetx, ntargety)) # allocated function on target grid
+
+# Construct a `Bilinear` object containing the source and target grid information,
+# and use it to perform the interpolation
+bilinear = Bilinear(xsource, ysource, xtarget, ytarget)
+interpolatebilinear!(ftarget, bilinear, fsource)
+```
+
+Example for using bilinear interpolation on multiple horizontal levels on a CPU:
+
+```julia
+# This example demonstrates use of multi-level bilinear interpolation for interpolating from 
+# a source grid of dimension (nlevels x nsourcex x nsourcey) to a target grid of dimension (nlevels x ntargetx x ntargety)
+
+import ClimaInterpolations.BilinearInterpolation: Bilinear, interpolatebilinear!
+import ClimaInterpolations.Interpolation1D:
+    Linear, interpolate1d!, Flat
+
+FT, DA = Float32, Array
+
+xmin, xmax, nsourcex, ntargetx = FT(0), FT(3π), 2560, 1280
+xmintarg, xmaxtarg = xmin, xmax
+
+ymin, ymax, nsourcey, ntargety = FT(0), FT(2π), 2400, 1200
+ymintarg, ymaxtarg = ymin, ymax
+
+zmin, zmax, nlevels = FT(0), FT(1), 128
+
+xsource = DA{FT}(range(xmin, xmax, length = nsourcex))
+xtarget = DA{FT}(range(xmintarg, xmaxtarg, length = ntargetx))
+
+ysource = DA{FT}(range(ymin, ymax, length = nsourcey))
+ytarget = DA{FT}(range(ymintarg, ymaxtarg, length = ntargety))
+
+z = DA{FT}(range(zmin, zmax, length = nlevels))
+
+# build a sample function defined on source grid for bilinear interpolation
+
+sourcemesh = (
+    x = DA([
+        xsource[j] for i in 1:nlevels, j in 1:nsourcex,
+        k in 1:nsourcey
+    ]),
+    y = DA([
+        ysource[k] for i in 1:nlevels, j in 1:nsourcex,
+        k in 1:nsourcey
+    ]),
+    z = DA([
+        z[i] for i in 1:nlevels, j in 1:nsourcex, k in 1:nsourcey
+    ]),
+)
+
+
+fsource = sin.(π .* sourcemesh.x) .* cos.(π .* sourcemesh.y) .* sourcemesh.z # function defined on source grid
+ftarget = DA(zeros(FT, nlevels, ntargetx, ntargety)) # allocated function on target grid
+
+# Construct a `Bilinear` object containing the source and target grid information,
+# and use it to perform the interpolation
+bilinear = Bilinear(xsource, ysource, xtarget, ytarget)
+interpolatebilinear!(ftarget, bilinear, fsource)
+```
+
+The above examples can be run on NVIDIA GPUs by setting `DA = CuArray`.

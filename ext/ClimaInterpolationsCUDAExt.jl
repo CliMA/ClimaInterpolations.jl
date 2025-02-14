@@ -14,4 +14,5 @@ import ClimaInterpolations.Interpolation1D:
     get_stencil
 
 include(joinpath("cuda", "interpolation1d.jl"))
+include(joinpath("cuda", "bilinearinterpolation.jl"))
 end # module
