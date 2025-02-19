@@ -103,4 +103,62 @@ function interpolate1d!(
     return nothing
 end
 
+"""
+    Interpolate1D{V, IO, EO}
+
+This struct stores the source grid (`xsource`), function defined on the source grid (`fsource`),
+interpolation order and extrapolation order for 1-dimensional interpolation.
+This struct is designed to be be used in broadcasting calls for 1-dimensional interpolation.
+
+E.g.: 
+
+itp = Interpolate1D(
+            xsource,
+            fsource,
+            interpolationorder = Linear(),
+            extrapolationorder = extrapolation,
+        )
+
+ftarget = itp.(xtarget)
+"""
+struct Interpolate1D{V, IO, EO}
+    xsource::V
+    fsource::V
+    interpolationorder::IO
+    extrapolationorder::EO
+end
+
+Base.broadcastable(itp::Interpolate1D) = Ref(itp)
+
+
+function Interpolate1D(
+    xsource,
+    fsource;
+    interpolationorder = Linear(),
+    extrapolationorder = Flat(),
+)
+    @assert length(xsource) == length(fsource)
+    return Interpolate1D(
+        xsource,
+        fsource,
+        interpolationorder,
+        extrapolationorder,
+    )
+end
+
+function (itp::Interpolate1D)(xtargetpoint)
+    (; xsource, fsource, interpolationorder, extrapolationorder) = itp
+    st, en = get_stencil(
+        interpolationorder,
+        xsource,
+        xtargetpoint,
+        extrapolate = extrapolationorder,
+    )
+    return @inbounds interpolate(
+        view(xsource, st:en),
+        view(fsource, st:en),
+        xtargetpoint,
+    )
+end
+
 end

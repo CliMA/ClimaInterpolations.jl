@@ -6,6 +6,7 @@ import ClimaInterpolations
 import ClimaInterpolations.Interpolation1D:
     interpolate,
     interpolate1d!,
+    Interpolate1D,
     Order1D,
     Extrapolate1D,
     Linear,
