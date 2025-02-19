@@ -78,3 +78,5 @@ function interpolate1d_kernel!(
     end
     return nothing
 end
+
+CUDA.Adapt.@adapt_structure Interpolate1D

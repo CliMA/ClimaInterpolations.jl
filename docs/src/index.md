@@ -12,13 +12,13 @@ import ClimaInterpolations.Interpolation1D:
     Linear, interpolate1d!, Flat
 
 FT, DA = Float32, Array
-xmin, xmax, nsource, ntarget = FT(0), FT(2π), 150, 200
-xmintarg, xmaxtarg = xmin, xmax
+xminsource, xmaxsource, nsource, ntarget = FT(0), FT(2π), 150, 200
+xmintarget, xmaxtarget = xminsource, xmaxsource
 
-xsource = DA{FT}(range(xmin, xmax, length = nsource))
-xtarget = DA{FT}(range(xmintarg, xmaxtarg, length = ntarget))
+xsource = DA{FT}(range(xminsource, xmaxsource, length = nsource))
+xtarget = DA{FT}(range(xmintarget, xmaxtarget, length = ntarget))
 
-fsource = sin.(xsource) # function defined on source grid
+fsource = DA(sin.(xsource)) # function defined on source grid
 ftarget = DA(zeros(FT, ntarget)) # allocated function on target grid
 interpolate1d!(ftarget, xsource, xtarget, fsource, Linear(), Flat())
 ```
@@ -30,11 +30,11 @@ import ClimaInterpolations.Interpolation1D:
     Linear, interpolate1d!, Flat
 
 FT, DA = Float32, Array
-xmin, xmax, nsource, ntarget, nlat, nlon = FT(0), FT(2π), 150, 200, 1280, 640
-xmintarg, xmaxtarg = xmin, xmax
+xminsource, xmaxsource, nsource, ntarget, nlat, nlon = FT(0), FT(2π), 150, 200, 1280, 640
+xmintarget, xmaxtarget = xminsource, xmaxsource
 
-xsource = DA{FT}(range(xmin, xmax, length = nsource))
-xtarget = DA{FT}(range(xmintarg, xmaxtarg, length = ntarget))
+xsource = DA{FT}(range(xminsource, xmaxsource, length = nsource))
+xtarget = DA{FT}(range(xmintarget, xmaxtarget, length = ntarget))
 
 xsourcecols = DA(repeat(xsource, 1, nlon, nlat))
 xtargetcols = DA(repeat(xtarget, 1, nlon, nlat))
@@ -45,6 +45,30 @@ interpolate1d!(ftargetcols, xsourcecols, xtargetcols, fsourcecols, Linear(), Fla
 ```
 
 The above examples can be run on NVIDIA GPUs by setting `DA = CuArray`.
+
+1D interpolation can also be invoked using a broadcasting call.
+
+```julia
+import ClimaInterpolations.Interpolation1D:
+    Linear, Interpolate1D, interpolate1d!, Flat
+
+FT, DA = Float32, Array
+xminsource, xmaxsource, nsource, ntarget = FT(0), FT(2π), 150, 200
+xmintarget, xmaxtarget = xminsource, xmaxsource
+
+xsource = DA{FT}(range(xminsource, xmaxsource, length = nsource))
+xtarget = DA{FT}(range(xmintarget, xmaxtarget, length = ntarget))
+
+fsource = DA(sin.(xsource)) # function defined on source grid
+
+itp = Interpolate1D(
+        xsource,
+        fsource,
+        interpolationorder = Linear(),
+        extrapolationorder = Flat(),
+    )
+ftarget = itp.(xtarget)
+```
 
 ## BilinearInterpolation
 `interpolatebilinear!` function can be used to perform bilinear interpolation on a single level on or a multiple horizontal levels of a rectangular grid. Both single threaded CPU and NVIDIA GPU platforms are supported. Examples for single level and multiple level cases are presented below.
@@ -63,17 +87,17 @@ import ClimaInterpolations.Interpolation1D:
 
 FT, DA = Float32, Array
 
-xmin, xmax, nsourcex, ntargetx = FT(0), FT(3π), 2560, 1280
-xmintarg, xmaxtarg = xmin, xmax
+xminsource, xmaxsource, nsourcex, ntargetx = FT(0), FT(3π), 2560, 1280
+xmintarget, xmaxtarget = xminsource, xmaxsource
 
 ymin, ymax, nsourcey, ntargety = FT(0), FT(2π), 2400, 1200
-ymintarg, ymaxtarg = ymin, ymax
+ymintarget, ymaxtarget = ymin, ymax
 
-xsource = DA{FT}(range(xmin, xmax, length = nsourcex))
-xtarget = DA{FT}(range(xmintarg, xmaxtarg, length = ntargetx))
+xsource = DA{FT}(range(xminsource, xmaxsource, length = nsourcex))
+xtarget = DA{FT}(range(xmintarget, xmaxtarget, length = ntargetx))
 
 ysource = DA{FT}(range(ymin, ymax, length = nsourcey))
-ytarget = DA{FT}(range(ymintarg, ymaxtarg, length = ntargety))
+ytarget = DA{FT}(range(ymintarget, ymaxtarget, length = ntargety))
 
 sourcemesh = (
     x = DA([xsource[i] for i in 1:nsourcex, j in 1:nsourcey]),
@@ -102,19 +126,19 @@ import ClimaInterpolations.Interpolation1D:
 
 FT, DA = Float32, Array
 
-xmin, xmax, nsourcex, ntargetx = FT(0), FT(3π), 2560, 1280
-xmintarg, xmaxtarg = xmin, xmax
+xminsource, xmaxsource, nsourcex, ntargetx = FT(0), FT(3π), 2560, 1280
+xmintarget, xmaxtarget = xminsource, xmaxsource
 
 ymin, ymax, nsourcey, ntargety = FT(0), FT(2π), 2400, 1200
-ymintarg, ymaxtarg = ymin, ymax
+ymintarget, ymaxtarget = ymin, ymax
 
 zmin, zmax, nlevels = FT(0), FT(1), 128
 
-xsource = DA{FT}(range(xmin, xmax, length = nsourcex))
-xtarget = DA{FT}(range(xmintarg, xmaxtarg, length = ntargetx))
+xsource = DA{FT}(range(xminsource, xmaxsource, length = nsourcex))
+xtarget = DA{FT}(range(xmintarget, xmaxtarget, length = ntargetx))
 
 ysource = DA{FT}(range(ymin, ymax, length = nsourcey))
-ytarget = DA{FT}(range(ymintarg, ymaxtarg, length = ntargety))
+ytarget = DA{FT}(range(ymintarget, ymaxtarget, length = ntargety))
 
 z = DA{FT}(range(zmin, zmax, length = nlevels))
 
