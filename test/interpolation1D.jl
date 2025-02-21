@@ -14,7 +14,6 @@ function test_single_column(
     xmaxtarg = xmax,
     extrapolation = Flat(),
 ) where {DA, FT}
-    trial_data = nothing
     @testset "1D linear interpolation on single column with $FT" begin
         toler = FT(0.003)
         xsource, xtarget = get_uniform_column_grids(
@@ -131,7 +130,6 @@ function test_multiple_columns(
     xmaxtarg = xmax,
     extrapolation = Flat(),
 ) where {DA, FT}
-    trial_data = nothing
     @testset "1D linear interpolation on multiple columns with $FT on $DA" begin
         toler = FT(0.003)
         xsource, xtarget = get_uniform_column_grids(
@@ -151,10 +149,47 @@ function test_multiple_columns(
         ftargetcols = DA(zeros(FT, ntarget, nlon, nlat))
         order = Linear()
 
+        # interpolate with different source grid and target grids for all columns
         interpolate1d!(
             ftargetcols,
             xsourcecols,
             xtargetcols,
+            fsourcecols,
+            order,
+            extrapolation,
+        )
+        diff = maximum(abs.(ftargetcols .- sin.(xtargetcols))[:])
+        @test diff ≤ toler
+        # interpolate with same source and target grids for all columns
+        ftargetcols .= NaN
+        interpolate1d!(
+            ftargetcols,
+            DA(xsource),
+            DA(xtarget),
+            fsourcecols,
+            order,
+            extrapolation,
+        )
+        diff = maximum(abs.(ftargetcols .- sin.(xtargetcols))[:])
+        @test diff ≤ toler
+        # interpolate with same source grid but different target grids for all columns
+        ftargetcols .= NaN
+        interpolate1d!(
+            ftargetcols,
+            DA(xsource),
+            xtargetcols,
+            fsourcecols,
+            order,
+            extrapolation,
+        )
+        diff = maximum(abs.(ftargetcols .- sin.(xtargetcols))[:])
+        @test diff ≤ toler
+        # interpolate with same target grid but different source grids for all columns
+        ftargetcols .= NaN
+        interpolate1d!(
+            ftargetcols,
+            xsourcecols,
+            DA(xtarget),
             fsourcecols,
             order,
             extrapolation,
