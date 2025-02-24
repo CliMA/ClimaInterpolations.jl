@@ -41,7 +41,17 @@ xtargetcols = DA(repeat(xtarget, 1, nlon, nlat))
 fsourcecols = DA(sin.(xsourcecols))
 ftargetcols = DA(zeros(FT, ntarget, nlon, nlat))
 
+# interpolate with different source grid and target grids for all columns
 interpolate1d!(ftargetcols, xsourcecols, xtargetcols, fsourcecols, Linear(), Flat())
+
+# interpolate with same source and target grids for all columns
+interpolate1d!(ftargetcols, xsource, xtarget, fsourcecols, Linear(), Flat())
+
+# interpolate with same source grid but different target grids for all columns
+interpolate1d!(ftargetcols, xsource, xtargetcols, fsourcecols, Linear(), Flat())
+
+# interpolate with same target grid but different source grids for all columns
+interpolate1d!(ftargetcols, xsourcecols, xtarget, fsourcecols, Linear(), Flat())
 ```
 
 The above examples can be run on NVIDIA GPUs by setting `DA = CuArray`.

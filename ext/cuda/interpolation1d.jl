@@ -1,18 +1,21 @@
+import ClimaInterpolations.Interpolation1D._get_grid_colidx
 
 function interpolate1d!(
     ftarget::CuArray{FT, N},
-    xsource::CuArray{FT, N},
-    xtarget::CuArray{FT, N},
+    xsource::CuArray{FT, NSG},
+    xtarget::CuArray{FT, NTG},
     fsource::CuArray{FT, N},
     order,
     extrapolate = ClimaInterpolations.Interpolation1D.Flat(),
-) where {FT, N}
+) where {FT, N, NSG, NTG}
     @assert N ≥ 1
-    (nsource, coldims_source...) = size(xsource)
-    (ntarget, coldims_target...) = size(xtarget)
-    @assert coldims_source == coldims_target
-    @assert size(ftarget) == size(xtarget)
-    @assert size(fsource) == size(xsource)
+    @assert NSG == 1 || NSG == N # Source grid can be the same for all columns or different for each column
+    @assert NTG == 1 || NTG == N # Target grid can be the same for all columns or different for each column
+    (nsource, coldims_source...) = size(fsource)
+    (ntarget, coldims_target...) = size(ftarget)
+    @assert coldims_source == coldims_target # check if column count and shape is same between source and target
+    @assert ntarget == size(xtarget, 1) # check if column length is same between ftarget and xtarget
+    @assert nsource == size(xsource, 1) # check if column length is same between fsource and xsource
     coldims = coldims_source
     colcidxs = CartesianIndices(coldims)
     nitems = length(colcidxs)
@@ -43,19 +46,21 @@ end
 
 function interpolate1d_kernel!(
     ftarget::AbstractArray{FT, N},
-    xsource::AbstractArray{FT, N},
-    xtarget::AbstractArray{FT, N},
+    xsource::AbstractArray{FT, NSG},
+    xtarget::AbstractArray{FT, NTG},
     fsource::AbstractArray{FT, N},
     order,
     extrapolate,
     colcidxs,
-) where {FT, N}
+) where {FT, N, NSG, NTG}
     nitems = length(colcidxs)
     # obtain the column number processed by each thread
     gid = threadIdx().x + (blockIdx().x - 1) * blockDim().x
 
     if gid ≤ nitems
         colidx = Tuple(colcidxs[gid])
+        colidxsource = _get_grid_colidx(NSG, colidx)
+        colidxtarget = _get_grid_colidx(NTG, colidx)
         nsource = size(xsource, 1)
         ntarget = size(xtarget, 1)
         first = 1
@@ -63,16 +68,16 @@ function interpolate1d_kernel!(
         for i1 in 1:ntarget
             (st, en) = get_stencil(
                 order,
-                view(xsource, 1:nsource, colidx...),
-                xtarget[i1, colidx...],
+                view(xsource, 1:nsource, colidxsource...),
+                xtarget[i1, colidxtarget...],
                 first = first,
                 extrapolate = extrapolate,
             )
             first = st
             ftarget[i1, colidx...] = interpolate(
-                view(xsource, st:en, colidx...),
+                view(xsource, st:en, colidxsource...),
                 view(fsource, st:en, colidx...),
-                xtarget[i1, colidx...],
+                xtarget[i1, colidxtarget...],
             )
         end
     end
