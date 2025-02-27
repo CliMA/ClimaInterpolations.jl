@@ -56,12 +56,15 @@ end
         fsource::AbstractArray{FT, N},
         order,
         extrapolate = Flat(),
+        reverse = false,
     ) where {FT, N, NSG, NTG}
 
 Interpolate `fsource`, defined on grid `xsource`, onto the `xtarget` grid.
 Here the source grid `xsource` is an N-dimensional array of columns.
 The first dimension is assumed to be the column dimension. 
-Each column can have a different grid.
+Each column can have a different grid. It is assumed that both `xsource` and
+`xtarget` are either mononically increasing (`reverse = false`) or decreasing
+(`reverse = true`).
 """
 function interpolate1d!(
     ftarget::AbstractArray{FT, N},
@@ -69,7 +72,8 @@ function interpolate1d!(
     xtarget::AbstractArray{FT, NTG},
     fsource::AbstractArray{FT, N},
     order,
-    extrapolate = Flat(),
+    extrapolate = Flat();
+    reverse = false,
 ) where {FT, N, NSG, NTG}
     @assert N ≥ 1
     @assert NSG == 1 || NSG == N # Source grid can be the same for all columns or different for each column
@@ -86,22 +90,59 @@ function interpolate1d!(
             colidx = Tuple(colcidx)
             colidxsource = _get_grid_colidx(NSG, colidx)
             colidxtarget = _get_grid_colidx(NTG, colidx)
-            first = 1
-            for i1 in 1:ntarget
-                (st, en) = get_stencil(
-                    order,
-                    view(xsource, :, colidxsource...),
-                    xtarget[i1, colidxtarget...],
-                    first = first,
-                    extrapolate = extrapolate,
-                )
-                first = st
-                ftarget[i1, colidx...] = interpolate(
-                    view(xsource, st:en, colidxsource...),
-                    view(fsource, st:en, colidx...),
-                    xtarget[i1, colidxtarget...],
-                )
-            end
+            interpolate_column!(
+                view(ftarget, :, colidx...),
+                view(xsource, :, colidxsource...),
+                view(xtarget, :, colidxtarget...),
+                view(fsource, :, colidx...),
+                order,
+                extrapolate,
+                reverse = reverse,
+            )
+        end
+    end
+    return nothing
+end
+
+"""
+    interpolate_column!(
+        ftarget,
+        xsource,
+        xtarget,
+        fsource,
+        order,
+        extrapolate;
+        reverse = false,
+    )
+
+Interpolate `fsource`, defined on column (`1D`) grid `xsource`, onto the `xtarget` grid.
+It is assumed that both `xsource` and `xtarget` are either mononically increasing 
+(`reverse = false`) or decreasing (`reverse = true`). This is a convenience function 
+primarily intended for internal use.
+"""
+@inline function interpolate_column!(
+    ftarget,
+    xsource,
+    xtarget,
+    fsource,
+    order,
+    extrapolate;
+    reverse = false,
+)
+    first = 1
+    @inbounds begin
+        for (i, x) in enumerate(xtarget)
+            (st, en) = get_stencil(
+                order,
+                xsource,
+                x,
+                first = first,
+                extrapolate = extrapolate,
+                reverse = reverse,
+            )
+            first = st
+            ftarget[i] =
+                interpolate(view(xsource, st:en), view(fsource, st:en), x)
         end
     end
     return nothing
@@ -132,16 +173,17 @@ struct Interpolate1D{V, IO, EO}
     fsource::V
     interpolationorder::IO
     extrapolationorder::EO
+    reverse::Bool
 end
 
 Base.broadcastable(itp::Interpolate1D) = Ref(itp)
-
 
 function Interpolate1D(
     xsource,
     fsource;
     interpolationorder = Linear(),
     extrapolationorder = Flat(),
+    reverse = false,
 )
     @assert length(xsource) == length(fsource)
     return Interpolate1D(
@@ -149,16 +191,18 @@ function Interpolate1D(
         fsource,
         interpolationorder,
         extrapolationorder,
+        reverse,
     )
 end
 
 function (itp::Interpolate1D)(xtargetpoint)
-    (; xsource, fsource, interpolationorder, extrapolationorder) = itp
+    (; xsource, fsource, interpolationorder, extrapolationorder, reverse) = itp
     st, en = get_stencil(
         interpolationorder,
         xsource,
         xtargetpoint,
         extrapolate = extrapolationorder,
+        reverse = reverse,
     )
     return @inbounds interpolate(
         view(xsource, st:en),

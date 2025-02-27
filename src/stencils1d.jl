@@ -34,7 +34,7 @@ Use linear extrapolation.
 struct LinearExtrapolation <: Extrapolate1D end
 
 """
-    get_stencil(alg::Linear, xsource, xtarget; first = 1, extrapolate = Flat())
+    get_stencil(alg::Linear, xsource, xtarget; first = 1, extrapolate = Flat(), reverse = false)
 
 This function returns the starting and ending points, in the source grid `xsource`, for the stencil
 needed for linear interpolation. If `xtarget` is outside the range of `xsource`, this returns the 
@@ -50,23 +50,28 @@ function get_stencil(
     xtarget;
     first = 1,
     extrapolate = Flat(),
+    reverse = false,
 )
     last = length(xsource)
-    if xtarget < xsource[1] # extrapolation
+    (lowidx, highidx, compare) = reverse ? (last, 1, ≥) : (1, last, ≤)
+
+    if xtarget < xsource[lowidx] # extrapolation
         # Linear extrapolation
-        extrapolate == LinearExtrapolation() && return (1, 2)
+        extrapolate == LinearExtrapolation() &&
+            (reverse ? (return (last - 1, last)) : (return (1, 2)))
         # Flat extrapolation by default
-        return (1, 1)
+        return (lowidx, lowidx)
     end
-    if xtarget > xsource[last] # extrapolation
+    if xtarget > xsource[highidx] # extrapolation
         # Linear extrapolation
-        extrapolate == LinearExtrapolation() && return (last - 1, last)
+        extrapolate == LinearExtrapolation() &&
+            (reverse ? (return (1, 2)) : (return (last - 1, last)))
         # Flat extrapolation by default
-        return (last, last)
+        return (highidx, highidx)
     end
     st = first
     for i in first:last
-        if xtarget ≤ xsource[i]
+        if compare(xtarget, xsource[i])
             st = max(i - 1, 1)
             break
         end

@@ -23,6 +23,28 @@ ftarget = DA(zeros(FT, ntarget)) # allocated function on target grid
 interpolate1d!(ftarget, xsource, xtarget, fsource, Linear(), Flat())
 ```
 
+In-place interpolation is also supported on reverse (monotonically decreasing grids).
+Please note that both the source and target grids need to be either monotonically
+increasing (default, `reverse=false`) or monotonically decreasing (reverse=true).
+
+```julia
+# In-place interpolation on a reversed grid
+
+import ClimaInterpolations.Interpolation1D:
+    Linear, interpolate1d!, Flat
+
+FT, DA = Float32, Array
+xminsource, xmaxsource, nsource, ntarget = FT(0), FT(2π), 150, 200
+xmintarget, xmaxtarget = xminsource, xmaxsource
+
+xsource = DA{FT}(reverse(range(xminsource, xmaxsource, length = nsource)))
+xtarget = DA{FT}(reverse(range(xmintarget, xmaxtarget, length = ntarget)))
+
+fsource = DA(sin.(xsource)) # function defined on source grid
+ftarget = DA(zeros(FT, ntarget)) # allocated function on target grid
+interpolate1d!(ftarget, xsource, xtarget, fsource, Linear(), Flat(), reverse = true)
+```
+
 Example for interpolating multiple columns on a CPU:
 
 ```julia

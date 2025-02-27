@@ -1,4 +1,5 @@
-import ClimaInterpolations.Interpolation1D._get_grid_colidx
+import ClimaInterpolations.Interpolation1D:
+    _get_grid_colidx, interpolate_column!
 
 function interpolate1d!(
     ftarget::CuArray{FT, N},
@@ -6,7 +7,8 @@ function interpolate1d!(
     xtarget::CuArray{FT, NTG},
     fsource::CuArray{FT, N},
     order,
-    extrapolate = ClimaInterpolations.Interpolation1D.Flat(),
+    extrapolate = ClimaInterpolations.Interpolation1D.Flat();
+    reverse = false,
 ) where {FT, N, NSG, NTG}
     @assert N ≥ 1
     @assert NSG == 1 || NSG == N # Source grid can be the same for all columns or different for each column
@@ -27,6 +29,7 @@ function interpolate1d!(
         order,
         extrapolate,
         colcidxs,
+        reverse,
     )
     kernel_config = CUDA.launch_configuration(kernel.fun)
     nthreads = min(kernel_config.threads, nitems)
@@ -40,6 +43,7 @@ function interpolate1d!(
         order,
         extrapolate,
         colcidxs,
+        reverse,
     )
     return nothing
 end
@@ -52,6 +56,7 @@ function interpolate1d_kernel!(
     order,
     extrapolate,
     colcidxs,
+    reverse,
 ) where {FT, N, NSG, NTG}
     nitems = length(colcidxs)
     # obtain the column number processed by each thread
@@ -61,25 +66,15 @@ function interpolate1d_kernel!(
         colidx = Tuple(colcidxs[gid])
         colidxsource = _get_grid_colidx(NSG, colidx)
         colidxtarget = _get_grid_colidx(NTG, colidx)
-        nsource = size(xsource, 1)
-        ntarget = size(xtarget, 1)
-        first = 1
-
-        for i1 in 1:ntarget
-            (st, en) = get_stencil(
-                order,
-                view(xsource, 1:nsource, colidxsource...),
-                xtarget[i1, colidxtarget...],
-                first = first,
-                extrapolate = extrapolate,
-            )
-            first = st
-            ftarget[i1, colidx...] = interpolate(
-                view(xsource, st:en, colidxsource...),
-                view(fsource, st:en, colidx...),
-                xtarget[i1, colidxtarget...],
-            )
-        end
+        interpolate_column!(
+            view(ftarget, :, colidx...),
+            view(xsource, :, colidxsource...),
+            view(xtarget, :, colidxtarget...),
+            view(fsource, :, colidx...),
+            order,
+            extrapolate,
+            reverse = reverse,
+        )
     end
     return nothing
 end

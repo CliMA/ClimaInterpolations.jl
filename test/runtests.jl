@@ -10,34 +10,42 @@ using Aqua
     include("interpolation1D.jl")
 
     for FT in (Float32, Float64)
-        # single column linear interpolation tests without extrapolation
-        test_single_column(Array, FT, get_dims_singlecol(FT)...)
-
-        # single column linear interpolation tests with Flat extrapolation
-        xmin, xmax, nsource, ntarget = get_dims_singlecol(FT)
-        test_single_column(
-            Array,
-            FT,
-            xmin,
-            xmax,
-            nsource,
-            ntarget,
-            xmintarg = xmin - 1.0,
-            xmaxtarg = xmax + 1.0,
-            extrapolation = Flat(),
-        )
-        # multi-column linear interpolation tests without extrapolation
-        xmin, xmax, nsource, ntarget, nlon, nlat = get_dims_multicol(FT)
-        test_multiple_columns(
-            Array,
-            FT,
-            xmin,
-            xmax,
-            nsource,
-            ntarget,
-            nlon,
-            nlat,
-        )
+        for reverse in (false, true)
+            # single column linear interpolation tests without extrapolation
+            test_single_column(
+                Array,
+                FT,
+                get_dims_singlecol(FT)...,
+                reverse = reverse,
+            )
+            # single column linear interpolation tests with Flat extrapolation
+            xmin, xmax, nsource, ntarget = get_dims_singlecol(FT)
+            test_single_column(
+                Array,
+                FT,
+                xmin,
+                xmax,
+                nsource,
+                ntarget,
+                xmintarget = xmin - 1.0,
+                xmaxtarget = xmax + 1.0,
+                extrapolation = Flat(),
+                reverse = reverse,
+            )
+            # multi-column linear interpolation tests without extrapolation
+            xmin, xmax, nsource, ntarget, nlon, nlat = get_dims_multicol(FT)
+            test_multiple_columns(
+                Array,
+                FT,
+                xmin,
+                xmax,
+                nsource,
+                ntarget,
+                nlon,
+                nlat,
+                reverse = reverse,
+            )
+        end
     end
 end
 
