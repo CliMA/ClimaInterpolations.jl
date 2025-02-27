@@ -6,27 +6,29 @@ include("utils.jl")
 function test_single_column(
     ::Type{DA},
     ::Type{FT},
-    xmin,
-    xmax,
+    xminsource,
+    xmaxsource,
     nsource,
     ntarget;
-    xmintarg = xmin,
-    xmaxtarg = xmax,
+    xmintarget = xminsource,
+    xmaxtarget = xmaxsource,
     extrapolation = Flat(),
+    reverse = false,
 ) where {DA, FT}
+    toler = FT(0.003)
+    xsource, xtarget = get_uniform_column_grids(
+        DA,
+        FT,
+        xminsource,
+        xmaxsource,
+        xmintarget,
+        xmaxtarget,
+        nsource,
+        ntarget,
+        reverse,
+    )
+    fsource = sin.(xsource) # function defined on source grid
     @testset "1D linear interpolation on single column with $FT" begin
-        toler = FT(0.003)
-        xsource, xtarget = get_uniform_column_grids(
-            DA,
-            FT,
-            xmin,
-            xmax,
-            xmintarg,
-            xmaxtarg,
-            nsource,
-            ntarget,
-        )
-        fsource = sin.(xsource) # function defined on source grid
         ftarget = DA(zeros(FT, ntarget)) # allocated function on target grid
         interpolate1d!(
             ftarget,
@@ -35,84 +37,48 @@ function test_single_column(
             fsource,
             Linear(),
             extrapolation,
+            reverse = reverse,
         )
         diff = maximum(
-            abs.(ftarget .- sin.(xtarget)) .* (xtarget .≤ xmax) .*
-            (xtarget .≥ xmin),
+            abs.(ftarget .- sin.(xtarget)) .* (xtarget .≤ xmaxsource) .*
+            (xtarget .≥ xminsource),
         )
         @test diff ≤ toler
-        converttoarray = !(DA <: Array)
-        xtarget = converttoarray ? Array(xtarget) : xtarget
-        ftarget = converttoarray ? Array(ftarget) : ftarget
-        fsource = converttoarray ? Array(fsource) : fsource
         # test extrapolation
-        if xmintarg < xmin || xmaxtarg > xmax
-            if extrapolation == Flat()
-                left_boundary_pass = true
-                right_boundary_pass = true
-                for i in 1:length(xtarget)
-                    if xtarget[i] < xmin
-                        left_boundary_pass = ftarget[i] == fsource[1]
-                    end
-                    if xtarget[i] > xmax
-                        right_boundary_pass = ftarget[i] == fsource[end]
-                    end
-                end
-                @testset "testing Flat extrapolation" begin
-                    @test left_boundary_pass
-                    @test right_boundary_pass
-                end
-            end
-        end
+        test_extrapolation(
+            (xminsource, xmaxsource),
+            (xmintarget, xmaxtarget),
+            xtarget,
+            fsource,
+            ftarget,
+            extrapolation,
+            reverse,
+        )
     end
     @testset "1D linear interpolation, with broadcasting, on single column with $FT" begin
-        toler = FT(0.003)
-        xsource, xtarget = get_uniform_column_grids(
-            DA,
-            FT,
-            xmin,
-            xmax,
-            xmintarg,
-            xmaxtarg,
-            nsource,
-            ntarget,
-        )
-        fsource = DA(sin.(xsource)) # function defined on source grid
         itp = Interpolate1D(
             xsource,
             fsource,
             interpolationorder = Linear(),
             extrapolationorder = extrapolation,
+            reverse = reverse,
         )
         ftarget = itp.(xtarget)
         diff = maximum(
-            abs.(ftarget .- sin.(xtarget)) .* (xtarget .≤ xmax) .*
-            (xtarget .≥ xmin),
+            abs.(ftarget .- sin.(xtarget)) .* (xtarget .≤ xmaxsource) .*
+            (xtarget .≥ xminsource),
         )
         @test diff ≤ toler
-        converttoarray = !(DA <: Array)
-        xtarget = converttoarray ? Array(xtarget) : xtarget
-        ftarget = converttoarray ? Array(ftarget) : ftarget
-        fsource = converttoarray ? Array(fsource) : fsource
         # test extrapolation
-        if xmintarg < xmin || xmaxtarg > xmax
-            if extrapolation == Flat()
-                left_boundary_pass = true
-                right_boundary_pass = true
-                for i in 1:length(xtarget)
-                    if xtarget[i] < xmin
-                        left_boundary_pass = ftarget[i] == fsource[1]
-                    end
-                    if xtarget[i] > xmax
-                        right_boundary_pass = ftarget[i] == fsource[end]
-                    end
-                end
-                @testset "testing Flat extrapolation" begin
-                    @test left_boundary_pass
-                    @test right_boundary_pass
-                end
-            end
-        end
+        test_extrapolation(
+            (xminsource, xmaxsource),
+            (xmintarget, xmaxtarget),
+            xtarget,
+            fsource,
+            ftarget,
+            extrapolation,
+            reverse,
+        )
     end
     return nothing
 end
@@ -129,6 +95,7 @@ function test_multiple_columns(
     xmintarg = xmin,
     xmaxtarg = xmax,
     extrapolation = Flat(),
+    reverse = false,
 ) where {DA, FT}
     @testset "1D linear interpolation on multiple columns with $FT on $DA" begin
         toler = FT(0.003)
@@ -141,6 +108,7 @@ function test_multiple_columns(
             xmaxtarg,
             nsource,
             ntarget,
+            reverse,
         )
         # allow a differnt source grid for each of the source columns 
         xsourcecols = DA(repeat(xsource, 1, nlon, nlat))
@@ -158,6 +126,7 @@ function test_multiple_columns(
             fsourcecols,
             order,
             extrapolation,
+            reverse = reverse,
         )
         diff = maximum(abs.(ftargetcols .- sin.(xtargetcols))[:])
         @test diff ≤ toler
@@ -170,6 +139,7 @@ function test_multiple_columns(
             fsourcecols,
             order,
             extrapolation,
+            reverse = reverse,
         )
         diff = maximum(abs.(ftargetcols .- sin.(xtargetcols))[:])
         @test diff ≤ toler
@@ -182,6 +152,7 @@ function test_multiple_columns(
             fsourcecols,
             order,
             extrapolation,
+            reverse = reverse,
         )
         diff = maximum(abs.(ftargetcols .- sin.(xtargetcols))[:])
         @test diff ≤ toler
@@ -194,6 +165,7 @@ function test_multiple_columns(
             fsourcecols,
             order,
             extrapolation,
+            reverse = reverse,
         )
         diff = maximum(abs.(ftargetcols .- sin.(xtargetcols))[:])
         @test diff ≤ toler
