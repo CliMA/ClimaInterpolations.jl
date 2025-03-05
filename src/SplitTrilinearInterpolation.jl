@@ -4,66 +4,96 @@ using DocStringExtensions
 import ..Interpolation1D: Linear, Flat, interpolate1d!
 import ..BilinearInterpolation: Bilinear, interpolatebilinear!, get_dims
 
-struct SplitTrilinear{VS, VT, B, S, W}
+struct SplitTrilinearHV{VS, VT, HB, W1, W2}
     vsource::VS
     vtarget::VT
-    bilinear::B
-    ordering::S
-    workarray::W
+    bilinear::HB
+    fsourceintermediate::W1
+    vsourceintermediate::W2
 end
 
-function SplitTrilinear(
+function SplitTrilinearHV(
     (vsource, h1source, h2source),
     (vtarget, h1target, h2target);
-    vreverse = false,
-    ordering = :verticalfirst,
 )
-    @assert ordering ∈ (:verticalfirst, :horizontalfirst)
-
     bilinear = Bilinear(h1source, h2source, h1target, h2target)
-    nh1source, nh2source, nh1target, nh2target = get_dims(bilinear)
     nvsource = size(vsource, 1)
-    nvtarget = size(vtarget, 1)
-    workarray =
-        ordering == :verticalfirst ?
-        similar(vsource, nvtarget, nh1source, nh2source) :
+    _, _, nh1target, nh2target = get_dims(bilinear)
+    fsourceintermediate = similar(vsource, nvsource, nh1target, nh2target)
+    vsourceintermediate =
+        ndims(vsource) == 1 ? vsource :
         similar(vsource, nvsource, nh1target, nh2target)
-
-    return SplitTrilinear(vsource, vtarget, bilinear, ordering, workarray)
+    ndims(vsource) == 1 ||
+        interpolatebilinear!(vsourceintermediate, bilinear, vsource)
+    return SplitTrilinearHV(
+        vsource,
+        vtarget,
+        bilinear,
+        fsourceintermediate,
+        vsourceintermediate,
+    )
 end
 
 function split_trilinear_interpolation!(
     ftarget,
-    splittrilinear::SplitTrilinear,
+    splittrilinear::SplitTrilinearHV,
     fsource;
     vextrapolate = Flat(),
     vreverse = false,
 )
-    (; vsource, vtarget, bilinear, ordering, workarray) = splittrilinear
-    if ordering == :verticalfirst # use vertical first
-        interpolate1d!(
-            workarray,
-            vsource,
-            vtarget,
-            fsource,
-            Linear(),
-            vextrapolate,
-            reverse = vreverse,
-        )
-        interpolatebilinear!(ftarget, bilinear, workarray)
-    else # use horizontal first
-        interpolatebilinear!(workarray, bilinear, fsource)
+    (; vtarget, bilinear, fsourceintermediate, vsourceintermediate) =
+        splittrilinear
+    # applies bilinear interpolation at each horizontal level
+    interpolatebilinear!(fsourceintermediate, bilinear, fsource)
+    # then apply linear interpolation in the vertical direction
+    interpolate1d!(
+        ftarget,
+        vsourceintermediate,
+        vtarget,
+        fsourceintermediate,
+        Linear(),
+        vextrapolate,
+        reverse = vreverse,
+    )
+    return nothing
+end
 
-        interpolate1d!(
-            ftarget,
-            vsource,
-            vtarget,
-            workarray,
-            Linear(),
-            vextrapolate,
-            reverse = vreverse,
-        )
-    end
+struct SplitTrilinearVH{VS, VT, HB, W1}
+    vsource::VS
+    vtarget::VT
+    bilinear::HB
+    fsourceintermediate::W1
+end
+
+function SplitTrilinearVH(
+    (vsource, h1source, h2source),
+    (vtarget, h1target, h2target);
+)
+    bilinear = Bilinear(h1source, h2source, h1target, h2target)
+    nvtarget = size(vtarget, 1)
+    nh1source, nh2source, _, _ = get_dims(bilinear)
+    fsourceintermediate = similar(vsource, nvtarget, nh1source, nh2source)
+    return SplitTrilinearVH(vsource, vtarget, bilinear, fsourceintermediate)
+end
+
+function split_trilinear_interpolation!(
+    ftarget,
+    splittrilinear::SplitTrilinearVH,
+    fsource;
+    vextrapolate = Flat(),
+    vreverse = false,
+)
+    (; vsource, vtarget, bilinear, fsourceintermediate) = splittrilinear
+    interpolate1d!(
+        fsourceintermediate,
+        vsource,
+        vtarget,
+        fsource,
+        Linear(),
+        vextrapolate,
+        reverse = vreverse,
+    )
+    interpolatebilinear!(ftarget, bilinear, fsourceintermediate)
     return nothing
 end
 
@@ -75,17 +105,27 @@ split_trilinear_interpolation!(
     vextrapolate = Flat(),
     vreverse = false,
     ordering = :verticalfirst,
-) = split_trilinear_interpolation!(
-    ftarget,
-    SplitTrilinear(
-        (vsource, h1source, h2source),
-        (vtarget, h1target, h2target),
+) =
+    ordering == :verticalfirst ?
+    split_trilinear_interpolation!(
+        ftarget,
+        SplitTrilinearVH(
+            (vsource, h1source, h2source),
+            (vtarget, h1target, h2target),
+        ),
+        fsource,
+        vextrapolate = vextrapolate,
         vreverse = vreverse,
-        ordering = ordering,
-    ),
-    fsource,
-    vextrapolate = vextrapolate,
-    vreverse = vreverse,
-)
+    ) :
+    split_trilinear_interpolation!(
+        ftarget,
+        SplitTrilinearHV(
+            (vsource, h1source, h2source),
+            (vtarget, h1target, h2target),
+        ),
+        fsource,
+        vextrapolate = vextrapolate,
+        vreverse = vreverse,
+    )
 
 end

@@ -83,6 +83,35 @@ end
     end
 end
 
+@safetestset "split trilinear interpolation" begin
+    include("split_trilinear_interpolation.jl")
+
+    for FT in (Float32, Float64)
+        for vreverse in (false, true)
+            (h1min, h1max),
+            (h2min, h2max),
+            (vmin, vmax),
+            (nh1source, nh2source),
+            (nh1target, nh2target),
+            (nvsource, nvtarget),
+            toler = get_dims_split_trilinear(FT)
+
+            test_split_trilinear(
+                Array,
+                FT,
+                (h1min, h1max),
+                (h2min, h2max),
+                (vmin, vmax),
+                (nh1source, nh2source),
+                nvsource,
+                (nh1target, nh2target),
+                nvtarget,
+                toler = toler,
+                vreverse = vreverse,
+            )
+        end
+    end
+end
 #! format: off
 @safetestset "Aqua" begin @time include("aqua.jl") end
 #! format: on
