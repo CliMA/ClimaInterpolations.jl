@@ -18,7 +18,6 @@ function test_split_trilinear(
     nvtarget;
     toler,
 ) where {DA, FT}
-    @show "in test_split_trilinear"
     # build source and target mesh
     h1source, h1target = get_uniform_column_grids(
         DA,
@@ -50,36 +49,45 @@ function test_split_trilinear(
         nvsource,
         nvtarget,
     )
+    convert2array = !(DA <: Array)
+    vsourcecpu = convert2array ? Array(vsource) : vsource
+    h1sourcecpu = convert2array ? Array(fsource) : h1source
+    h2sourcecpu = convert2array ? Array(ftarget) : h2source
 
     fsource =
         testfunc.(
             DA([
-                h1source[j] for i in 1:nvsource, j in 1:nh1source,
+                h1sourcecpu[j] for i in 1:nvsource, j in 1:nh1source,
                 k in 1:nh2source
             ]),
             DA([
-                h2source[k] for i in 1:nvsource, j in 1:nh1source,
+                h2sourcecpu[k] for i in 1:nvsource, j in 1:nh1source,
                 k in 1:nh2source
             ]),
             DA([
-                vsource[i] for i in 1:nvsource, j in 1:nh1source,
+                vsourcecpu[i] for i in 1:nvsource, j in 1:nh1source,
                 k in 1:nh2source
             ]),
         )
+
     ftarget_vfirst = DA{FT}(undef, nvtarget, nh1target, nh2target)
+
+    vtargetcpu = convert2array ? Array(vtarget) : vtarget
+    h1targetcpu = convert2array ? Array(h1target) : h1target
+    h2targetcpu = convert2array ? Array(h2target) : h2target
 
     ftargetexact =
         testfunc.(
             DA([
-                h1target[j] for i in 1:nvtarget, j in 1:nh1target,
+                h1targetcpu[j] for i in 1:nvtarget, j in 1:nh1target,
                 k in 1:nh2target
             ]),
             DA([
-                h2target[k] for i in 1:nvtarget, j in 1:nh1target,
+                h2targetcpu[k] for i in 1:nvtarget, j in 1:nh1target,
                 k in 1:nh2target
             ]),
             DA([
-                vtarget[i] for i in 1:nvtarget, j in 1:nh1target,
+                vtargetcpu[i] for i in 1:nvtarget, j in 1:nh1target,
                 k in 1:nh2target
             ]),
         )
@@ -123,6 +131,7 @@ get_dims_split_trilinear(::Type{FT}) where {FT} = (
 )
 
 FT = Float32
+DA = Array
 (h1min, h1max),
 (h2min, h2max),
 (vmin, vmax),
@@ -132,7 +141,7 @@ FT = Float32
 toler = get_dims_split_trilinear(FT)
 
 test_split_trilinear(
-    Array,
+    DA,
     FT,
     (h1min, h1max),
     (h2min, h2max),
