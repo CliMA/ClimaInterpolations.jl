@@ -35,6 +35,8 @@ steps:
       - label: "Unit: CPU tests & aqua"
         key: unit_cpu_tests
         command: "julia --color=yes --check-bounds=yes --project=.buildkite test/runtests.jl"
+        agents:
+          slurm_mem: 16G
 
       - label: "Unit: CUDA tests"
         key: unit_cuda_tests
@@ -42,4 +44,5 @@ steps:
           - "julia --color=yes --check-bounds=yes --project=.buildkite test/runtests_cuda.jl"
         agents:
           slurm_gpus: 1
+          slurm_mem: 16G
           slurm_cpus_per_task: 4
