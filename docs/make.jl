@@ -30,6 +30,7 @@ Documenter.makedocs(;
         "Home" => "index.md",
         "Interpolation1D.md",
         "BilinearInterpolation.md",
+        "SplitTrilinearInterpolation.md",
         "references.md",
     ],
 )
