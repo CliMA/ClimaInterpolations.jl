@@ -55,41 +55,39 @@ function test_split_trilinear(
     h1sourcecpu = convert2array ? Array(h1source) : h1source
     h2sourcecpu = convert2array ? Array(h2source) : h2source
 
-    fsource =
-        testfunc.(
-            DA([
-                h1sourcecpu[j] for i in 1:nvsource, j in 1:nh1source,
-                k in 1:nh2source
-            ]),
-            DA([
-                h2sourcecpu[k] for i in 1:nvsource, j in 1:nh1source,
-                k in 1:nh2source
-            ]),
-            DA([
-                vsourcecpu[i] for i in 1:nvsource, j in 1:nh1source,
-                k in 1:nh2source
-            ]),
-        )
+    fsource = testfunc.(
+        DA([
+            h1sourcecpu[j] for
+            i in 1:nvsource, j in 1:nh1source, k in 1:nh2source
+        ]),
+        DA([
+            h2sourcecpu[k] for
+            i in 1:nvsource, j in 1:nh1source, k in 1:nh2source
+        ]),
+        DA([
+            vsourcecpu[i] for
+            i in 1:nvsource, j in 1:nh1source, k in 1:nh2source
+        ]),
+    )
 
     vtargetcpu = convert2array ? Array(vtarget) : vtarget
     h1targetcpu = convert2array ? Array(h1target) : h1target
     h2targetcpu = convert2array ? Array(h2target) : h2target
 
-    ftargetexact =
-        testfunc.(
-            DA([
-                h1targetcpu[j] for i in 1:nvtarget, j in 1:nh1target,
-                k in 1:nh2target
-            ]),
-            DA([
-                h2targetcpu[k] for i in 1:nvtarget, j in 1:nh1target,
-                k in 1:nh2target
-            ]),
-            DA([
-                vtargetcpu[i] for i in 1:nvtarget, j in 1:nh1target,
-                k in 1:nh2target
-            ]),
-        )
+    ftargetexact = testfunc.(
+        DA([
+            h1targetcpu[j] for
+            i in 1:nvtarget, j in 1:nh1target, k in 1:nh2target
+        ]),
+        DA([
+            h2targetcpu[k] for
+            i in 1:nvtarget, j in 1:nh1target, k in 1:nh2target
+        ]),
+        DA([
+            vtargetcpu[i] for
+            i in 1:nvtarget, j in 1:nh1target, k in 1:nh2target
+        ]),
+    )
 
     ftarget_hfirst = DA{FT}(undef, nvtarget, nh1target, nh2target)
 
