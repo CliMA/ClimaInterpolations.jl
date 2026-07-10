@@ -108,35 +108,17 @@ function test_multilevel(
         bilinear = Bilinear(xsource, ysource, xtarget, ytarget)
         # build fsource
         xscpu, yscpu, zcpu = Array(xsource), Array(ysource), Array(z)
-        fsource =
-            testfunc.(
-                DA([
-                    xscpu[j] for i in 1:nlevels, j in 1:nsourcex,
-                    k in 1:nsourcey
-                ]),
-                DA([
-                    yscpu[k] for i in 1:nlevels, j in 1:nsourcex,
-                    k in 1:nsourcey
-                ]),
-                DA([
-                    zcpu[i] for i in 1:nlevels, j in 1:nsourcex, k in 1:nsourcey
-                ]),
-            )
+        fsource = testfunc.(
+            DA([xscpu[j] for i in 1:nlevels, j in 1:nsourcex, k in 1:nsourcey]),
+            DA([yscpu[k] for i in 1:nlevels, j in 1:nsourcex, k in 1:nsourcey]),
+            DA([zcpu[i] for i in 1:nlevels, j in 1:nsourcex, k in 1:nsourcey]),
+        )
         xtcpu, ytcpu = Array(xtarget), Array(ytarget)
-        ftargetexact =
-            testfunc.(
-                DA([
-                    xtcpu[j] for i in 1:nlevels, j in 1:ntargetx,
-                    k in 1:ntargety
-                ]),
-                DA([
-                    ytcpu[k] for i in 1:nlevels, j in 1:ntargetx,
-                    k in 1:ntargety
-                ]),
-                DA([
-                    zcpu[i] for i in 1:nlevels, j in 1:ntargetx, k in 1:ntargety
-                ]),
-            )
+        ftargetexact = testfunc.(
+            DA([xtcpu[j] for i in 1:nlevels, j in 1:ntargetx, k in 1:ntargety]),
+            DA([ytcpu[k] for i in 1:nlevels, j in 1:ntargetx, k in 1:ntargety]),
+            DA([zcpu[i] for i in 1:nlevels, j in 1:ntargetx, k in 1:ntargety]),
+        )
         # allocate ftarget
         ftarget = DA{FT}(undef, nlevels, ntargetx, ntargety)
         # use bilinear interpolation
