@@ -156,8 +156,6 @@ function interpolatebilinear_kernel!(
     return nothing
 end
 
-CUDA.Adapt.@adapt_structure Bilinear
-
 function Bilinear(
     sourcex::V,
     sourcey::V,
