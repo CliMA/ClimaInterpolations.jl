@@ -1,6 +1,7 @@
 module BilinearInterpolation
 using DocStringExtensions
 import ..Interpolation1D: get_stencil, Linear, Flat
+import Adapt
 
 """
     Bilinear{V,I}
@@ -26,6 +27,8 @@ struct Bilinear{V, I}
     "left index of location of a target `y` grid point in source `y` grid"
     starty::I
 end
+
+Adapt.@adapt_structure Bilinear
 
 get_dims(b::Bilinear) =
     (length(b.sourcex), length(b.sourcey), length(b.targetx), length(b.targety))

@@ -1,6 +1,7 @@
 module Interpolation1D
 
 using DocStringExtensions
+import Adapt
 
 include("stencils1d.jl")
 
@@ -176,6 +177,7 @@ struct Interpolate1D{V, IO, EO}
     reverse::Bool
 end
 
+Adapt.@adapt_structure Interpolate1D
 Base.broadcastable(itp::Interpolate1D) = Ref(itp)
 
 function Interpolate1D(
